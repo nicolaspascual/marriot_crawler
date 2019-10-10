@@ -21,3 +21,12 @@ The code is encapsulated in three main classes:
  - Finally model dataclasses are made to hold the simplicity
 
 An important observation is that I am not use to work with virtualenv, I usually work with pipenv and maybe the shebang in `crawl.py` is not ok. In case it is not ok please execute it as a normal python script.
+
+## Running the tests
+
+Some simple unit test cases have been added testing the models and simple logic in the crawler.
+
+To run the tests you just need to execute
+```bash
+$ python -m unittest discover -s ./test 
+```
