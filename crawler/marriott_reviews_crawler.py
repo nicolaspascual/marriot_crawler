@@ -1,104 +1,130 @@
-import selenium
-from selenium import webdriver
-from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
-from selenium.common.exceptions import NoSuchElementException
+from .selenium_facade import SeleniumFacade
+from .models import Response, Review
 
 
 class MarriotReviewsScraper(object):
     base_url = 'https://www.marriott.com/hotels/hotel-reviews/miaxr-the-st-regis-bal-harbour-resort/'
-    driver_path = '/home/nicolas/workspace/career/bin/geckodriver'
 
     def __init__(self, max_pages):
-        self.browser = webdriver.Firefox(
-            executable_path=MarriotReviewsScraper.driver_path)
+        self.browser = SeleniumFacade()
         self.max_pages = max_pages
 
     def call(self):
+        """
+        Main loop of the algorithm which just parses the HTML while passing
+        pages
+        """
         self.browser.get(MarriotReviewsScraper.base_url)
-        parsed_reviews = []
+        parsed_reviews = self._parse_reviews()
         for _ in range(self.max_pages - 1):
-            parsed_reviews += self._parse_reviews()
             self._go_to_next_page()
+            parsed_reviews += self._parse_reviews()
         return parsed_reviews
 
     def _go_to_next_page(self):
-        self.browser.execute_script(
-            "window.scrollTo(0, document.body.scrollHeight);"
-        )
+        """
+        Goes to next page by clicking on the a element at the bottom of the page
+        """
         self.browser.find_element_by_css_selector(
             '.BVRRNextPage > a'
         ).click()
 
     def _parse_reviews(self):
+        """
+        Parses the review of the page
+        """
+        self.browser.scroll_bottom()  # In order to make sure that everything is loaded
         reviews = self.browser.find_elements_by_css_selector(
             '#BVRRDisplayContentBodyID > .BVRRContentReview'
         )
-        for review in reviews:
-            yield {
-                ** self._parse_text(review),
-                ** self._parse_title(review),
-                ** self._parse_date(review),
-                ** self._parse_score(review),
-                ** self._parse_location_score(review),
-                ** self._parse_author(review),
-                ** self._parse_responses(review)
-            }
+        return [
+            Review(
+                title=self._parse_title(review),
+                author=self._parse_author(review),
+                text=self._parse_text(review),
+                date=self._parse_date(review),
+                score=self._parse_score(review),
+                location_score=self._parse_location_score(review),
+                responses=self._parse_responses(review)
+            )
+            for review in reviews
+        ]
 
     def _parse_text(self, review):
-        return {
-            'text': review.find_element_by_class_name('BVRRReviewText').text
-        }
+        """
+        Parses the text of the review 
+        """
+        return review.find_element_by_class_name('BVRRReviewText').text
 
     def _parse_title(self, review):
-        return {
-            'title': review.find_element_by_class_name('BVRRReviewTitle').text
-        }
+        """
+        Parses the title of the review 
+        """
+        return review.find_element_by_class_name('BVRRReviewTitle').text
 
     def _parse_date(self, review):
-        return {
-            'date': review.find_element_by_class_name('BVRRReviewDate').text
-        }
+        """
+        Parses the date of the review 
+        """
+        return review.find_element_by_class_name('BVRRReviewDate').text
 
     def _parse_score(self, review):
-        return {
-            'score': float(review.find_element_by_css_selector(
-                'div[itemprop=reviewRating] > span.BVRRRatingNumber'
-            ).get_attribute('innerHTML').strip())
-        }
+        """
+        Parses the score of the review and casts it.
+
+        Special retrieval method is used becouse of malformation in the HTML.
+        For this reason get_attribute is used instead of text
+        """
+        return self._to_float(review.find_element_by_css_selector(
+            'div[itemprop=reviewRating] > span.BVRRRatingNumber'
+        ).get_attribute('innerHTML').strip())
 
     def _parse_location_score(self, review):
-        return {
-            'location_score': float(review.find_element_by_css_selector(
-                '.BVRRRatingLocation .BVRRRatingNumber'
-            ).get_attribute('innerHTML').strip())
-        }
+        """
+        Parses the location score of the revie and casts it.
+
+        Special retrieval method is used becouse of malformation in the HTML.
+        For this reason get_attribute is used instead of text
+        """
+        return self._to_float(review.find_element_by_css_selector(
+            '.BVRRRatingLocation .BVRRRatingNumber'
+        ).get_attribute('innerHTML').strip())
+
+    def _to_float(self, string):
+        """
+        Tries to cast a float, in case there is a problem it returns None.
+        """
+        try:
+            return float(string)
+        except ValueError:
+            return None
 
     def _parse_author(self, review):
-        return {
-            'author': review.find_element_by_class_name('BVRRUserNickname').text
-        }
+        """
+        Parses the author of the review.
+        """
+        return review.find_element_by_class_name('BVRRUserNickname').text
 
     def _parse_responses(self, review):
-        try:
-            review.find_element_by_class_name(
-                'BVDI_COInsideBodyComments'
-            )
-        except NoSuchElementException:
-            return {}
-
+        """
+        Parses the responses of the review.
+        """
         responses = review.find_elements_by_css_selector(
             '.BVDI_COInsideBodyComments > div'
         )
 
-        return {
-            'responses': [
-                self._parse_response(response)
-                for response in responses
-            ]
-        }
+        return [
+            self._parse_response(response)
+            for response in responses
+        ]
 
     def _parse_response(self, response):
-        return {
-            'text': response.find_element_by_class_name('BVDI_COCommentText').text,
-            'date': response.find_element_by_class_name('BVDI_COCommentDateValue').text
-        }
+        """
+        Parse each specific response.
+        """
+        return Response(
+            text=response.find_element_by_class_name(
+                'BVDI_COCommentText').text,
+            author=response.find_element_by_class_name(
+                'BVDI_COCommentDateValue').text
+        )
