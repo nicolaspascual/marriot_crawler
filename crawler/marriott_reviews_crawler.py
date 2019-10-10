@@ -2,6 +2,7 @@ from .selenium_facade import SeleniumFacade
 from .models import Response, Review
 from retry import retry
 
+
 class MarriotReviewsScraper(object):
     base_url = 'https://www.marriott.com/hotels/hotel-reviews/miaxr-the-st-regis-bal-harbour-resort/'
 
@@ -50,28 +51,24 @@ class MarriotReviewsScraper(object):
             for review in reviews
         ]
 
-    @retry(tries=3)
     def _parse_text(self, review):
         """
         Parses the text of the review 
         """
         return review.find_element_by_class_name('BVRRReviewText').text
 
-    @retry(tries=3)
     def _parse_title(self, review):
         """
         Parses the title of the review 
         """
         return review.find_element_by_class_name('BVRRReviewTitle').text
 
-    @retry(tries=3)
     def _parse_date(self, review):
         """
         Parses the date of the review 
         """
         return review.find_element_by_class_name('BVRRReviewDate').text
 
-    @retry(tries=3)
     def _parse_score(self, review):
         """
         Parses the score of the review and casts it.
@@ -83,7 +80,6 @@ class MarriotReviewsScraper(object):
             'div[itemprop=reviewRating] > span.BVRRRatingNumber'
         ).get_attribute('innerHTML').strip())
 
-    @retry(tries=3)
     def _parse_location_score(self, review):
         """
         Parses the location score of the revie and casts it.
@@ -104,14 +100,12 @@ class MarriotReviewsScraper(object):
         except ValueError:
             return None
 
-    @retry(tries=3)
     def _parse_author(self, review):
         """
         Parses the author of the review.
         """
         return review.find_element_by_class_name('BVRRUserNickname').text
 
-    @retry(tries=3)
     def _parse_responses(self, review):
         """
         Parses the responses of the review.
@@ -125,7 +119,6 @@ class MarriotReviewsScraper(object):
             for response in responses
         ]
 
-    @retry(tries=3)
     def _parse_response(self, response):
         """
         Parse each specific response.
