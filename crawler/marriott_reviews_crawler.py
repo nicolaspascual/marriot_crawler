@@ -1,6 +1,5 @@
 from .selenium_facade import SeleniumFacade
 from .models import Response, Review
-from retry import retry
 
 
 class MarriotReviewsScraper(object):
